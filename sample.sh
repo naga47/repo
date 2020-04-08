@@ -1,3 +1,4 @@
-echo "welcome to jenkins world"
+echo "welcome to Jenkins"
 echo "`hostname`"
 echo "`pwd`"
+
