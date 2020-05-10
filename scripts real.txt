@@ -62,7 +62,7 @@ VALUE=`cat /tmp/temp | wc -l`
 #!/bin/bash
 HOSTNAME=$(hostname)
 cd /tmp
-mv temp naga
+mv temp newtemp
 done
 =========================================================
 
