@@ -1,0 +1,76 @@
+#script to start or stop httpd service
+
+#!/bin/bash
+read -p "Enter start or stop action" action
+if ["$(action)" == "start"]
+then
+	echo "starting httpd"
+	sudo systemctl start httpd
+	echo "started httpd"
+fi
+if ["$(action)" == "stop"]
+then 
+	echo "stopping httpd"
+	sudo systemctl stop httpd
+	echo "stopped httpd"
+fi
+===================================================
+#check ping connectivity of multiple servers
+
+#!/bin/bash
+hosts="/home/ubuntu/hostsfile"
+allips= cat $hosts
+for ip in allips
+do
+ ping -c1 $ip &> /dev/null
+ if [ $? -eq 0 ]
+ then 
+  echo $ip is reachable
+ else
+  echo $ip is unreachable
+ fi
+done
+
+================================================
+touch -d "Mon, 1 March 2018 12:30:00" file1  ==(file1 is created as mentioned date & time)
+=================================================
+delete files older than 90 days
+
+#!/bin/bash
+find /home/ubuntu/logs -mtime +90 -exec ls -l {} \;  ==(lists the files older than 90 days)
+find /home/ubuntu/logs -mtime +90 -exec rm -f {} \;  ==(removes files older than 90 days)
+find /home/ubuntu/logs -mtime +90 -exec mv {} {}.old \;  ==(renames files older than 90 to .old file)
+
+=================================================
+#!/bin/bash
+THRESHOLD=40
+mailto="root"
+HOSTNAME=$(hostname)
+
+for path in `/bin/df -h | grep -vE 'Filesystem|tmpfs' | awk '{print $5}'`
+do
+ if [ $path -ge $THRESHOLD ]; then
+ df -h | grep $path% >> /tmp/temp
+ fi
+done
+
+VALUE=`cat /tmp/temp | wc -l`
+ if [ $VALUE -ge 1 ]; then
+ mail -s "$HOSTNAME Disk Usage is Critical" $mailto < /tmp/temp
+ fi
+=====================================
+#!/bin/bash
+HOSTNAME=$(hostname)
+cd /tmp
+mv temp naga
+done
+=========================================================
+
+
+
+
+
+
+
+
+
