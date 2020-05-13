@@ -1,0 +1,328 @@
+==> jenkins-git-maven-tomcat-deployment
+
+pipeline {
+   agent any
+
+   tools {
+      // Install the Maven version configured as "M3" and add it to the path.
+      maven "maven"
+   }
+
+   stages {
+      stage('Build') {
+         steps {
+            // Get some code from a GitHub repository
+            git branch: 'test', changelog: false, credentialsId: 'git_jms_cre', poll: false, url: 'https://github.com/jmstechhome/spring3-mvc-maven-xml-hello-world.git'
+
+            // Run Maven on a Unix agent.
+            sh "mvn package"
+
+            // To run Maven on a Windows agent, use
+            // bat "mvn -Dmaven.test.failure.ignore=true clean package"
+         }
+        post {
+            // If Maven was able to run the tests, even if some of the test
+            // failed, record the test results and archive the jar file.
+            success {
+               archiveArtifacts 'target/*.war'
+            }
+			}
+
+      }
+      stage('deploy'){
+          steps {
+              sh "sudo cp /var/lib/jenkins/workspace/web-pipeline/target/spring3-mvc-maven-xml-hello-world-1.2.war /var/lib/tomcat/webapps/"
+          }
+       
+    }
+    stage ('success'){
+            steps {
+                script {
+                    currentBuild.result = 'SUCCESS'
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            script {
+                currentBuild.result = 'FAILURE'
+            }
+        }
+
+        always {
+            step([$class: 'Mailer',
+                notifyEveryUnstableBuild: true,
+                recipients: "balallala@gmail.com",
+                sendToIndividuals: true])
+        }
+    }
+}
+
+-------------------------below code is above modified code
+pipeline {
+   agent any
+
+   tools {
+      maven "maven"
+   }
+
+   stages {
+      stage('Build') {
+         steps {
+            
+            git branch: 'master', changelog: false, credentialsId: 'git_jms_cre', poll: false, url: '<github link>'
+            sh "mvn package"
+            // bat "mvn -Dmaven.test.failure.ignore=true clean package"
+         }
+        post {
+            success {
+               archiveArtifacts 'target/*.war'
+            }
+			}
+
+      }
+      stage('deploy'){
+          steps {
+              sh "sudo cp /var/lib/jenkins/workspace/<folder name>/target/<war file name>.war /var/lib/tomcat/webapps/"
+          }
+       
+    }
+    stage ('success'){
+            steps {
+                script {
+                    currentBuild.result = 'SUCCESS'
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            script {
+                currentBuild.result = 'FAILURE'
+            }
+        }
+
+        always {
+            step([$class: 'Mailer',
+                notifyEveryUnstableBuild: true,
+                recipients: "<mail>@gmail.com",
+                sendToIndividuals: true])
+        }
+    }
+}
+
+
+===============================================================
+
+jenkins--pipeline--image build---push to ecr repo
+dockerfile should present in git
+install amazon ecr plugin in jenkins then add credentials-->kind=AWS Credentials--> give id, des, access key & secret key
+
+pipeline{
+ agent any
+ environment
+  {
+    VERSION = "${BUILD_NUMBER}"
+	PROJECT = 'myproj'					---> ecr repo name
+	IMAGE = "$PROJECT:$VERSION"
+	ECRURL = 'https://repository url'
+	ECRCRED = 'ecr:ap-south-1:awscredentials'    awscredentials-->id name---> stored in jenkins-->add credentials (region dependend)
+  }
+  stages{
+   stage('GetSCM'){
+    steps{
+	 git 'github link'
+	}
+	}
+	stage('ImageBuild'){
+	 steps{
+	  script{
+	   docker.build('$IMAGE')
+	  }
+	 }
+	}
+	stage('PushImage'){
+	 steps{
+	  script{
+	   docker.withRegistry(ECRURL, ECRCRED)
+	   {
+	     docker.image(IMAGE).push()
+	   }
+	  }
+	 }
+	}
+  }
+ }
+================================================================
+my jenks
+
+git checkout and build
+
+pipeline{
+    agent any
+    tools{
+        maven 'maven3.6'  --> maven is installed in jenkins & configured in Global Tool Configuration
+    }
+    stages{
+        stage('checkout'){
+            steps{
+                checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/naga47/project.git']]])
+            }
+        }
+        stage('Build'){
+            steps{
+                echo "building application"
+                sh "mvn package"
+            }
+        }
+        
+    }
+    }
+
+================================================
+build is parameterised
+
+pipeline{
+    agent any
+	parameters{
+        booleanParam(name: 'executeBuilds', defaultValue: true, description: '')
+    }
+    tools{
+        maven 'maven3.6'
+    }
+    stages{
+        stage('checkout'){
+            steps{
+                checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/naga47/project.git']]])
+            }
+        }
+        stage('Build'){
+		   when{
+		     expression{
+		          params.executeBuilds
+		        }
+		    }
+            steps{
+                sh "mvn package"
+            }
+        }
+        
+    }
+    }
+
+======================================================
+compile is parameterised
+
+pipeline{
+    agent any
+	parameters{
+        booleanParam(name: 'executeCompile', defaultValue: true, description: '')
+    }
+    tools{
+        maven 'maven3.6'
+    }
+    stages{
+        stage('checkout'){
+            steps{
+                checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/naga47/project.git']]])
+            }
+        }
+        stage('Compile'){
+		when{
+		     expression{
+		          params.executeCompile
+		        }
+		    }
+            steps{
+                echo "compiling the code"
+                sh "mvn compile"
+            }
+        }
+        stage('Build'){
+            steps{
+                echo "building application"
+                sh "mvn package"
+            }
+        }
+        
+    }
+    }
+
+=======================================================
+def CONTAINER_NAME="jenkins-pipeline"
+def CONTAINER_TAG="latest"
+
+
+agent {
+        docker {
+          image 'maven:3.5.0'
+        }
+      }
+stage('Image Build'){
+      steps{
+         sh "docker build -t $containerName:$tag  -t $containerName --pull --no-cache ."
+         echo "Image build complete"
+	    }
+    }
+
+
+=======================================================
+
+def CONTAINER_NAME="<webserver>"  -->this should present in the dockerhub
+def CONTAINER_TAG="latest"
+def DOCKER_HUB_USER="nagarjunanetha"
+def HTTP_PORT="8090"  -->created conatiner runs on this port
+
+node {
+
+    stage('Initialize'){
+        def dockerHome = tool 'myDocker'
+        def mavenHome  = tool 'myMaven'
+        env.PATH = "${dockerHome}/bin:${mavenHome}/bin:${env.PATH}"  --> configure in a way that automatically installs on jenkins(global config)
+    }
+
+    stage('Checkout') {
+        checkout scm   			---> keep this file in github (Jenkfile)
+    }
+
+    stage('Build'){
+        sh "mvn clean install"
+    }
+
+    stage('Image Build'){
+        imageBuild(CONTAINER_NAME, CONTAINER_TAG)
+    }
+
+    stage('Push to Docker Registry'){
+        withCredentials([usernamePassword(credentialsId: 'dockerHub', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+            pushToImage(CONTAINER_NAME, CONTAINER_TAG, USERNAME, PASSWORD)
+        }
+    }
+
+    stage('Run App'){
+        runApp(CONTAINER_NAME, CONTAINER_TAG, DOCKER_HUB_USER, HTTP_PORT)
+    }
+
+}
+
+def imageBuild(containerName, tag){
+    sh "docker build -t $containerName:$tag  -t $containerName --pull --no-cache ."
+    echo "Image build complete"
+}
+
+def pushToImage(containerName, tag, dockerUser, dockerPassword){
+    sh "docker login -u $dockerUser -p $dockerPassword"
+    sh "docker tag $containerName:$tag $dockerUser/$containerName:$tag"
+    sh "docker push $dockerUser/$containerName:$tag"
+    echo "Image push complete"
+}
+
+def runApp(containerName, tag, dockerHub, httpPort){
+    sh "docker pull $dockerHub/$containerName"
+    sh "docker run -d --rm -p $httpPort:$httpPort --name $containerName $dockerHub/$containerName:$tag"
+    echo "Application started on port: ${httpPort} (http)"
+}
+
